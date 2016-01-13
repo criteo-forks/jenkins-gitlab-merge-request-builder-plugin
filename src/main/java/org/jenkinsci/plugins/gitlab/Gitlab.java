@@ -29,6 +29,10 @@ public class Gitlab {
     }
 
     public List<GitlabProject> getCachedProjects() throws IOException {
+        if (_projectsCache == null) {
+            connect();
+        }
+
         return _projectsCache.get();
     }
 
