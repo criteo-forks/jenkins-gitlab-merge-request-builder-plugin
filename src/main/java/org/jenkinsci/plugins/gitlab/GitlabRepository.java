@@ -53,7 +53,7 @@ public class GitlabRepository {
 
         List<GitlabMergeRequest> mergeRequests;
         try {
-            mergeRequests = _builder.getGitlab().get().getOpenMergeRequests(_project);
+            mergeRequests = _builder.getGitlab().getOpenMergeRequests(_project);
         } catch (IOException e) {
             _logger.log(Level.SEVERE, "Could not retrieve merge requests.", e);
             return;
