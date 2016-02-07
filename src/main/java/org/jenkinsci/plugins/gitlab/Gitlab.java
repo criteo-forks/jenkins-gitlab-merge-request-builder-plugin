@@ -127,7 +127,7 @@ public class Gitlab {
 
         public List<GitlabMergeRequest> get(GitlabProject project) throws IOException {
             _requests.add(project);
-            final List<GitlabMergeRequest> l = _responses.remove(project);
+            final List<GitlabMergeRequest> l = _responses.get(project);
             return l == null ? Collections.<GitlabMergeRequest>emptyList() : l;
         }
 
