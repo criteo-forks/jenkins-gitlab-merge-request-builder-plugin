@@ -90,29 +90,41 @@ public class Gitlab {
     private static class OpenMergeRequestAsyncGetter {
 
         private final GitlabAPI _api;
-        private final long _periodMs;
 
+        // Number of milliseconds to wait between two actual requests for the same project
+        private final long _minDelayMs;
+
+        // Requests for open MR (enqueued by callers, dequeued asynchronously by dedicated thread)
+        // Ideally entries should be project Id (Integer), but the Gitlab API expects an entire
+        // GitlabProject (even though the code behind only use the id)
         private final BlockingQueue<GitlabProject> _requests = new LinkedBlockingQueue<>();
-        private final ConcurrentHashMap<GitlabProject, List<GitlabMergeRequest>> _responses = new ConcurrentHashMap<>();
 
-        public OpenMergeRequestAsyncGetter(GitlabAPI api, long periodMs) {
+        // Map associating Gitlab project ids to open merge requests obtained on last check
+        private final ConcurrentHashMap<Integer, List<GitlabMergeRequest>> _responses = new ConcurrentHashMap<>();
+
+        public OpenMergeRequestAsyncGetter(GitlabAPI api, long delayMs) {
             _api = api;
-            _periodMs = periodMs;
+            _minDelayMs = delayMs;
 
+            // This thread makes the actual requests
             new Thread(new Runnable() {
 
-                private final HashMap<GitlabProject, Long> _lastTime = new HashMap<>();
+                // Map associating Gitlab project ids to the time of the last check
+                private final HashMap<Integer, Long> _lastTime = new HashMap<>();
 
                 public void run() {
                     try {
                         while (true) {
+                            // Consume an external request
                             GitlabProject p = _requests.take();
                             try {
-                                Long t = _lastTime.get(p);
-                                if (t == null || _periodMs < System.currentTimeMillis() - t) {
+                                Long t = _lastTime.get(p.getId());
+                                if (t == null || _minDelayMs < System.currentTimeMillis() - t) {
                                     _logger.log(Level.FINE, this.toString() + " actually getting open merge requests for " + p.getId());
-                                    _responses.put(p, _api.getOpenMergeRequests(p));
-                                    _lastTime.put(p, System.currentTimeMillis());
+                                    // (the GitlabProject instance is not aggregated by GitlabMergeRequests, and
+                                    // only the project Id is actually used by getOpenMergeRequests
+                                    _responses.put(p.getId(), _api.getOpenMergeRequests(p));
+                                    _lastTime.put(p.getId(), System.currentTimeMillis());
                                 }
                             } catch (IOException e) {
                                 _logger.log(Level.SEVERE, e.getMessage());
@@ -127,7 +139,7 @@ public class Gitlab {
 
         public List<GitlabMergeRequest> get(GitlabProject project) throws IOException {
             _requests.add(project);
-            final List<GitlabMergeRequest> l = _responses.get(project);
+            final List<GitlabMergeRequest> l = _responses.get(project.getId());
             return l == null ? Collections.<GitlabMergeRequest>emptyList() : l;
         }
 
