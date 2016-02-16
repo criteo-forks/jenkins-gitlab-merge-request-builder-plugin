@@ -70,19 +70,21 @@ public class GitlabMergeRequestWrapper {
             _iid = gitlabMergeRequest.getIid();
         }
 
-        if (_targetBranch == null) {
+        if (_targetBranch == null || _targetBranch.trim().isEmpty()) {
             _targetBranch = gitlabMergeRequest.getTargetBranch();
         }
 
-        if (_sourceBranch == null) {
+        if (_sourceBranch == null || _sourceBranch.trim().isEmpty()) {
             _sourceBranch = gitlabMergeRequest.getSourceBranch();
         }
 
-        if (_description == null) {
+        if (_description == null || _description.trim().isEmpty()) {
             _description = gitlabMergeRequest.getDescription();
+
+            if (_description == null) { _description = ""; }
         }
 
-        if (_sourceProject == null) {
+        if (_sourceProject == null || _sourceProject.getId() == null || _sourceProject.getName() == null) {
             try {
                 GitlabAPI api = _builder.getGitlab().get();
                 _sourceProject = getSourceProject(gitlabMergeRequest, api);
